@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.env.local
+.firebase/
+*-debug.log
+playwright-report/
+test-results/
+emulator-data/
+*.local
+*.tsbuildinfo
+preview-*.jpg

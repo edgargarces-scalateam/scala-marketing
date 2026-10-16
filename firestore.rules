@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function member(){return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid));}
+  function role(){return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;}
+  function admin(){return member() && role() == 'Administrator';}
+  function manager(){return member() && role() in ['Administrator','Manager'];}
+  function editor(){return member() && role() in ['Administrator','Manager','Agency Editor'];}
+  function validTask(){let d=request.resource.data;return d.title is string && d.title.size()>0 && d.title.size()<=300 && d.description is string && d.description.size()<=20000 && d.start is string && d.end is string && d.start<=d.end && d.progress is number && d.progress>=0 && d.progress<=100 && d.effort is number && d.effort>=0 && d.effort<=1000 && d.assignee is string && d.status is string && d.status in get(/databases/$(database)/documents/settings/workspace).data.statuses && d.priority in get(/databases/$(database)/documents/settings/workspace).data.priorities && d.updatedBy==request.auth.uid && d.updatedAt is string && d.history is list && d.comments is list && d.attachments is list && d.dependencies is list;}
+  function audit(){let d=request.resource.data;return d.history.size()==(resource.data.history.size()+1) && d.history[d.history.size()-1].author==get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name;}
+  match /users/{uid}{allow read:if member();allow create,delete:if admin();allow update:if admin() || (member() && request.auth.uid==uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timezone']));}
+  match /settings/{id}{allow read:if member();allow write:if admin();}
+  match /tasks/{id}{
+   allow read:if member();
+   allow create:if editor() && validTask() && request.resource.data.createdBy==request.auth.uid && request.resource.data.approval=='Not requested' && !(request.resource.data.status in ['Approved','Changes requested']);
+   allow update:if validTask() && audit() && request.resource.data.createdBy==resource.data.createdBy && request.resource.data.createdAt==resource.data.createdAt && request.resource.data.history.hasAll(resource.data.history) && (editor() || (member() && role()=='Contributor' && resource.data.assignee==get(/databases/$(database)/documents/users/$(request.auth.uid)).data.name && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','progress','checklist','comments','attachments','updatedBy','updatedAt','history','completedAt']))) && (manager() || (request.resource.data.approval==resource.data.approval && (!(request.resource.data.status in ['Approved','Changes requested']) || request.resource.data.status==resource.data.status)));
+   allow delete:if admin();
+  }
+  match /activityHistory/{id}{allow read:if member();allow create:if member() && role()!='Viewer' && request.resource.data.actor==request.auth.uid && request.resource.data.text is string && request.resource.data.taskId is string && getAfter(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.updatedBy==request.auth.uid && getAfter(/databases/$(database)/documents/tasks/$(request.resource.data.taskId)).data.updatedAt==request.resource.data.at;allow update,delete:if false;}
+  match /projects/{id}{allow read:if member();allow write:if manager();}
+  match /campaigns/{id}{allow read:if member();allow write:if manager();}
+  match /milestones/{id}{allow read:if member();allow write:if manager();}
+  match /savedFilters/{id}{allow read,delete:if member() && resource.data.owner==request.auth.uid;allow create:if member() && request.resource.data.owner==request.auth.uid;allow update:if member() && resource.data.owner==request.auth.uid && request.resource.data.owner==request.auth.uid;}
+  match /notifications/{id}{allow read:if member() && resource.data.recipient==request.auth.uid;allow update:if member() && resource.data.recipient==request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);}
+ }
+}

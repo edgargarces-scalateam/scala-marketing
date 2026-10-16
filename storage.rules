@@ -1,0 +1,13 @@
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  function member(){return request.auth!=null && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid));}
+  function editor(taskId){let user=firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data;return user.role in ['Administrator','Manager','Agency Editor'] || (user.role=='Contributor' && firestore.get(/databases/(default)/documents/tasks/$(taskId)).data.assignee==user.name);}
+  match /tasks/{taskId}/{fileName}{
+   allow read:if member();
+   allow create:if member() && editor(taskId) && firestore.exists(/databases/(default)/documents/tasks/$(taskId)) && request.resource.size<=10*1024*1024 && request.resource.contentType.matches('image/(png|jpeg|webp)|application/pdf');
+   allow update:if false;
+   allow delete:if member() && editor(taskId);
+  }
+ }
+}
