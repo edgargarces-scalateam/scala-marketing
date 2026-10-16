@@ -33,8 +33,8 @@ export const initialCampaigns: Plan[] = [
   },
 ];
 export function useCatalog(demo: boolean, active: boolean) {
-  const [projects, setProjects] = useState<Plan[]>(initialProjects),
-    [campaigns, setCampaigns] = useState<Plan[]>(initialCampaigns);
+  const [projects, setProjects] = useState<Plan[]>(demo ? initialProjects : []),
+    [campaigns, setCampaigns] = useState<Plan[]>(demo ? initialCampaigns : []);
   useEffect(() => {
     if (!active) return;
     if (demo) {
@@ -77,15 +77,30 @@ export function Catalog({
   catalog,
   editable,
   onOpen,
+  createRequest = 0,
 }: {
   catalog: ReturnType<typeof useCatalog>;
   editable: boolean;
+  createRequest?: number;
   onOpen: (name: string) => void;
 }) {
   const { t } = useI18n();
   const [kind, setKind] = useState<"projects" | "campaigns">("projects"),
     [draft, setDraft] = useState<Plan | null>(null),
     [error, setError] = useState("");
+  useEffect(() => {
+    if (createRequest && editable) {
+      setKind("projects");
+      setDraft({
+        id: crypto.randomUUID(),
+        name: "",
+        description: "",
+        start: new Date().toISOString().slice(0, 10),
+        end: new Date().toISOString().slice(0, 10),
+        archived: false,
+      });
+    }
+  }, [createRequest, editable]);
   const list = catalog[kind];
   return (
     <section className="panel">

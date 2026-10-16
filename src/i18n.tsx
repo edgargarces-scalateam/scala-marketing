@@ -1,6 +1,47 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 type Language = "en" | "es";
 const spanish: Record<string, string> = {
+  "Add project": "Agregar proyecto",
+  Username: "Nombre de usuario",
+  "Accounts and password resets are managed by your administrator through the terminal.":
+    "El administrador crea las cuentas y restablece las contraseñas desde la terminal.",
+  "Use a username of 3–32 letters, numbers, dots, underscores or hyphens.":
+    "Usa un nombre de usuario de 3 a 32 letras, números, puntos, guiones bajos o guiones.",
+  "Bulk import": "Importar en lote",
+  "Close import": "Cerrar importación",
+  "Choose import file": "Seleccionar archivo de importación",
+  "Download CSV template": "Descargar plantilla CSV",
+  "File format help": "Ayuda del formato",
+  "records ready": "registros listos",
+  "Confirm import": "Confirmar importación",
+  "Importing…": "Importando…",
+  "Import completed": "Importación completada",
+  "Fix the file and upload it again. Nothing has been saved.":
+    "Corrige el archivo y vuelve a subirlo. No se ha guardado ningún registro.",
+  "Upload tasks, events, milestones, projects and campaigns. Preview and validate before saving.":
+    "Sube tareas, eventos, hitos, proyectos y campañas. Revisa y valida antes de guardar.",
+  "CSV or JSON · up to 200 records · 2 MB maximum. Existing records are never overwritten.":
+    "CSV o JSON · hasta 200 registros · máximo 2 MB. No se sobrescriben registros existentes.",
+  "Required activity fields: title, start and end (YYYY-MM-DD). Use kind: task, event or milestone. Use semicolons for dependency IDs and tags in CSV. Assignees must match registered names.":
+    "Campos requeridos: title, start y end (AAAA-MM-DD). Usa kind: task, event o milestone. Separa dependencias y etiquetas con punto y coma en CSV. Los responsables deben coincidir con nombres registrados.",
+  "JSON accepts arrays named tasks, events, milestones, projects and campaigns. Projects use name, start and end. Campaigns also require project. Timed events may include startAt and endAt with a timezone offset.":
+    "JSON admite listas tasks, events, milestones, projects y campaigns. Los proyectos usan name, start y end. Las campañas requieren también project. Los eventos con hora pueden incluir startAt y endAt con zona horaria.",
+  "Imports use the workspace status and category names in English, even when the interface is Spanish.":
+    "La importación usa los nombres de estados y categorías del espacio en inglés, aunque la interfaz esté en español.",
+  "Import files must be 2 MB or smaller.":
+    "Los archivos deben pesar 2 MB o menos.",
+  "Choose a CSV or JSON file.": "Selecciona un archivo CSV o JSON.",
+  "Record type": "Tipo de registro",
+  task: "Tarea",
+  event: "Evento",
+  milestone: "Hito",
+  tasks: "Tareas",
+  projects: "Proyectos",
+  campaigns: "Campañas",
+  Type: "Tipo",
+  "Event start (ISO with timezone)": "Inicio del evento (ISO con zona horaria)",
+  "Event end (ISO with timezone)": "Fin del evento (ISO con zona horaria)",
+
   "Activity filter": "Filtrar actividades",
   "All dates and activities": "Todas las fechas y actividades",
   "Due today": "Vence hoy",

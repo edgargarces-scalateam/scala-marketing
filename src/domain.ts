@@ -43,6 +43,9 @@ export type Role =
   | "Contributor"
   | "Viewer";
 export type Task = {
+  kind?: "task" | "event" | "milestone";
+  startAt?: string;
+  endAt?: string;
   id: string;
   title: string;
   description: string;
@@ -71,11 +74,7 @@ export type Task = {
   updatedAt: string;
   completedAt?: string;
 };
-export const people = [
-  "Edgar Garcés",
-  "Business associate",
-  "Marketing agency",
-];
+export const people = ["Edgar Garcés"];
 export function canEdit(role: Role, task: Task, name: string) {
   return (
     ["Administrator", "Manager", "Agency Editor"].includes(role) ||
@@ -165,7 +164,7 @@ export function seedTasks(): Task[] {
     campaign: "October webinar launch",
     channel: i < 6 ? "Instagram" : i < 12 ? "Website" : "Webinar",
     type: types[i % types.length],
-    assignee: people[i % 3],
+    assignee: i % 3 === 0 ? people[0] : "",
     collaborators: [],
     start:
       i === 15

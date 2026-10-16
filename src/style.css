@@ -1454,3 +1454,65 @@ th {
 .catalog-form > button {
   margin-right: 12px;
 }
+.project-add {
+  float: right;
+  padding: 0;
+  margin: 0 !important;
+  color: #0866f1;
+}
+.import-trigger {
+  font-size: 12px;
+  background: white;
+  border: 1px solid #dbe4f1;
+  border-radius: 7px;
+  padding: 11px 14px;
+  margin-right: 10px;
+}
+.import-panel {
+  width: 760px;
+}
+.import-panel details {
+  font-size: 12px;
+  color: #61728b;
+  line-height: 1.7;
+}
+.import-errors {
+  color: #a14651;
+  font-size: 12px;
+  max-height: 180px;
+  overflow: auto;
+  padding-left: 20px;
+}
+.import-preview {
+  max-height: 340px;
+  overflow: auto;
+  margin-top: 15px;
+}
+.import-preview table {
+  font-size: 11px;
+}
+.import-panel > h3 {
+  overflow-wrap: anywhere;
+}
+.sidebar-projects > button {
+  text-align: left;
+  line-height: 1.5;
+}
+.sidebar-projects .nav-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .import-trigger {
+    padding: 10px 8px;
+    font-size: 10px;
+    margin-right: 6px;
+  }
+  .page-heading > div:first-child {
+    min-width: 0;
+  }
+  .page-heading > button {
+    flex-shrink: 0;
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "projects": [
+    {
+      "id": "sample-growth",
+      "name": "Growth launch",
+      "description": "Example imported marketing project",
+      "start": "2026-10-20",
+      "end": "2026-10-30"
+    }
+  ],
+  "campaigns": [
+    {
+      "id": "sample-launch",
+      "name": "Growth launch campaign",
+      "project": "sample-growth",
+      "start": "2026-10-20",
+      "end": "2026-10-30"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "sample-assets",
+      "title": "Prepare launch assets",
+      "project": "sample-growth",
+      "campaign": "sample-launch",
+      "start": "2026-10-20",
+      "end": "2026-10-22",
+      "priority": "High",
+      "effort": 8,
+      "tags": ["launch"]
+    }
+  ],
+  "events": [
+    {
+      "id": "sample-review",
+      "title": "Launch review meeting",
+      "project": "sample-growth",
+      "campaign": "sample-launch",
+      "startAt": "2026-10-23T10:00:00-05:00",
+      "endAt": "2026-10-23T11:00:00-05:00",
+      "dependencies": ["sample-assets"]
+    }
+  ],
+  "milestones": [
+    {
+      "id": "sample-live",
+      "title": "Launch ready",
+      "project": "sample-growth",
+      "campaign": "sample-launch",
+      "start": "2026-10-24",
+      "dependencies": ["sample-review"]
+    }
+  ]
+}

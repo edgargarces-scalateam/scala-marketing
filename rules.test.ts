@@ -220,3 +220,13 @@ it("enforces attachment role, MIME type and existing task restrictions", async (
     ),
   );
 });
+it("requires the trusted terminal for profile creation and role changes, even for administrators", async () => {
+  const db = env.authenticatedContext("Administrator").firestore();
+  await assertFails(
+    setDoc(doc(db, "users", "web-created"), {
+      name: "Web account",
+      role: "Viewer",
+    }),
+  );
+  await assertFails(updateDoc(doc(db, "users", "Viewer"), { role: "Manager" }));
+});

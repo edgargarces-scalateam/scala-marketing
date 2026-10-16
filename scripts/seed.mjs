@@ -10,7 +10,7 @@ const host = process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080";
 if (!/^(127\.0\.0\.1|localhost):\d+$/.test(host))
   throw Error("Seed only permits loopback emulators.");
 const project = "demo-scala";
-const email = "edgar@scala.local";
+const email = "edgar@users.scala.invalid";
 const password = "ScalaDemo2026!";
 const auth = await fetch(
   "http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=demo-key",
@@ -67,6 +67,7 @@ async function put(path, data) {
   if (!r.ok) throw Error(await r.text());
 }
 await put(`users/${user.localId}`, {
+  username: "edgar",
   name: "Edgar Garcés",
   email,
   role: "Administrator",
@@ -104,5 +105,5 @@ await put("milestones/live-webinar", {
 for (const task of seedTasks())
   await put(`tasks/${task.id}`, { ...task, createdBy: user.localId });
 console.log(
-  `Emulator seed ready. Login: ${email} / ${password}. These credentials work ONLY in the local emulator.`,
+  `Emulator seed ready. Username: edgar / Password: ${password}. These credentials work ONLY in the local emulator.`,
 );

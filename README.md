@@ -1,6 +1,6 @@
 # Scala Marketing Command Center
 
-Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Production hosting target: **GitHub Pages**. Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The private GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Nothing has been deployed.
+Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Production hosting target: **GitHub Pages**. Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The public GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Nothing has been deployed.
 
 ## Prerequisites and installation
 
@@ -23,12 +23,12 @@ npm run seed
 npm run dev
 ```
 
-The explicit seed targets only loopback emulators and `demo-scala`; it never runs automatically. The emulator UI is at http://127.0.0.1:4000. Sign in with `edgar@scala.local` / `ScalaDemo2026!` after seeding. Those credentials are local sample credentials only. Restart Vite after changing environment values. To retain emulator data use `firebase emulators:start --project demo-scala --export-on-exit ./emulator-data --import ./emulator-data` (create the initial export without `--import`).
+The explicit seed targets only loopback emulators and `demo-scala`; it never runs automatically. The emulator UI is at http://127.0.0.1:4000. Sign in with username `edgar` / password `ScalaDemo2026!` after seeding. Those credentials are local sample credentials only. Restart Vite after changing environment values. To retain emulator data use `firebase emulators:start --project demo-scala --export-on-exit ./emulator-data --import ./emulator-data` (create the initial export without `--import`).
 
 ## Production Firebase services — requires operator approval
 
 1. The project and Web app already exist: `scala-marketing-2026`. Its public browser configuration is in the ignored `.env.production.local` file. Copy values to `.env.local` only when ready to connect local development to the cloud. Use the variable names in `.env.example`. Set `VITE_USE_EMULATORS=false`.
-2. Enable Authentication → Email/Password. Google login is optional: enable its provider and set `VITE_GOOGLE_LOGIN=true`. Add your `USERNAME.github.io` hostname (or custom domain) under Authentication → Settings → Authorized domains. The app uses Google popup login, avoiding a server callback route on Pages.
+2. Enable Authentication → Email/Password in Firebase. The app presents **Username + Password**; the username is normalized and mapped to an internal `USERNAME@users.scala.invalid` Firebase Auth identifier. There is no public username lookup or self-registration. Add your `edgargarces-scalateam.github.io` hostname (or custom domain) under Authentication → Settings → Authorized domains.
 3. Create Firestore and a Storage bucket. Storage availability/billing depends on your Firebase project; do not enable paid resources without approval.
 4. After review and approval, deploy **rules only** with `npx firebase deploy --only firestore:rules,firestore:indexes,storage --project YOUR_PROJECT_ID`. GitHub Pages deployment does not deploy Firebase rules.
 5. Provision the first administrator through the trusted script below. Web clients cannot bootstrap themselves, register publicly or modify their own role.
@@ -41,12 +41,35 @@ Firebase Web API keys and app IDs are public project identifiers, not server cre
 Install the declared dependencies, then authenticate the trusted operator with Application Default Credentials (for example `gcloud auth application-default login`) using an identity authorized for this Firebase project. Keep all credentials outside this repository.
 
 ```sh
-npm run provision-user -- --project YOUR_PROJECT_ID --email YOUR_EMAIL --name 'Edgar Garcés' --role Administrator --bootstrap
+npm run provision-user -- --project scala-marketing-2026 --username edgar --name 'Edgar Garcés' --role Administrator --bootstrap
 ```
 
-Bootstrap refuses when an administrator already exists. For additional invited members, run the same command without `--bootstrap`, choosing Administrator, Manager, Agency Editor, Contributor or Viewer. This trusted operator command is privileged; restrict its execution to administrators. It creates the Auth identity and Firestore profile and records a provisioning event. It prints a sensitive password setup link: share privately with the intended recipient and never commit it. It does not send email. Users may also request a reset through the login form. Passwords reside only in Firebase Authentication.
+The terminal securely prompts for a password and confirmation without echoing either. Use at least 12 characters. Never supply a password in shell arguments, a Firestore document, a CSV import or chat. Bootstrap refuses when an administrator already exists.
 
-The initial workspace settings document must contain the default statuses before creating tasks. The provisioning script initializes it if absent. Team names/emails in the brief are placeholders; no real colleagues have been invited.
+For another team member, omit `--bootstrap` and choose a role:
+
+```sh
+npm run provision-user -- --project scala-marketing-2026 --username colleague.name --name 'Full registered name' --role 'Contributor' --email colleague@example.com
+```
+
+`--email` is optional contact metadata; users sign in with their username. Usernames contain 3–32 ASCII letters/numbers, dots, underscores or hyphens, and are normalized to lowercase. Display names must be unique because task execution permissions currently use the trusted profile name. The registered names appear in filters, assignment menus and workload; no generic agency/associate placeholder users are created.
+
+To reset a password, rerun the trusted command for that username with `--set-password`. It securely prompts for the new password. Existing usernames keep their password when only profile fields change. To migrate an older email/password identity while preserving its UID, pass its original Auth email with `--email` and the desired `--username`. A provisioning event is recorded without logging the password. No email is sent; distribute initial credentials privately.
+
+Browser clients, including administrators, cannot create profiles, change roles or delete users. The Admin SDK terminal tool bypasses client Security Rules using the authorized operator's ADC credentials. No production profile has been created automatically. The script initializes default workspace settings when missing.
+
+## Bulk import
+
+Use **Bulk import / Importar en lote** beside **New activity**. Choose CSV or JSON, inspect the validation preview, then click **Confirm import**. Uploading a file alone writes nothing. Files are limited to 2 MB and 200 records per import; repeat in batches for larger datasets. Imports create new records only and reject IDs that already exist. Firestore writes and per-activity audit entries commit in a single atomic batch. An invalid record prevents saving the entire batch.
+
+Supported record kinds: `task`, `event`, `milestone`, `project`, `campaign`. Tasks/events/milestones share the activity store and appear in the existing activity/calendar/timeline workflows. Timed events preserve `startAt` and `endAt` as UTC instants; date-only planning uses `YYYY-MM-DD` in the selected workspace timezone. Profiles/passwords cannot be imported through the website.
+
+- Download the CSV template from the import dialog. `kind` defaults to `task`; title, start and end are required for ordinary tasks. Use semicolons for dependency IDs and tags. All dates must be valid ISO calendar dates.
+- JSON accepts an array of records with `kind`, or an object with `projects`, `campaigns`, `tasks`, `events` and `milestones` arrays. See [examples/bulk-import.json](examples/bulk-import.json) for a complete five-kind example.
+- Imported plans are resolved before tasks. Project/campaign references may use IDs or exact names. Campaigns must belong to the selected project. Unknown assignees, statuses and categories, missing dependencies, cycles, approval decisions and duplicate IDs are rejected.
+- Assignees match registered full names, case-insensitively. Leave blank for unassigned work. Use canonical workspace status/category values (initial defaults are English) even when the interface is Spanish.
+- Managers/Administrators may import all five kinds. Agency Editors may import tasks/events/milestones only. Contributors/Viewers cannot import.
+- Events may use ISO timestamps with explicit timezone offsets instead of date fields. Milestones need only a start date and use the same end date. Imports do not overwrite existing records or create team members.
 
 ## Commands and quality checks
 
@@ -61,7 +84,7 @@ npm run build
 npm run preview
 ```
 
-Rules tests launch disposable Firestore and Storage emulators. The integration test seeds the local Auth/Firestore emulators and verifies real Firebase SDK login, task creation/completion and logout denial. Run them with an available Java runtime. End-to-end tests cover demo entry, task creation/completion, Gantt rendering and calendar rendering at desktop and phone sizes. Install a Playwright Chromium runtime with `npx playwright install chromium` if needed. These demo browser tests do not substitute for a production authentication test; use the emulator credentials for manual Auth/password-reset verification (reset links are printed by the Auth emulator). No production credentials are stored in tests.
+Rules tests launch disposable Firestore and Storage emulators. The integration test seeds the local Auth/Firestore emulators and verifies real Firebase SDK login, task creation/completion and logout denial. Run them with an available Java runtime. End-to-end tests cover demo entry, task creation/completion, Gantt rendering and calendar rendering at desktop and phone sizes. Install a Playwright Chromium runtime with `npx playwright install chromium` if needed. These demo browser tests do not substitute for a production authentication test; use the emulator credentials for manual username/password verification; password resets are performed by the operator terminal command. No production credentials are stored in tests.
 
 ## GitHub Pages deployment — manual, approval required
 
@@ -72,15 +95,15 @@ Make **this directory the repository root**, or adapt workflow working directori
 3. Configure the `github-pages` environment with a required reviewer for deployment approval.
 4. After explicit approval, manually dispatch **Deploy Scala to GitHub Pages** in Actions.
 
-The workflow does not run on push. It builds, checks and uploads `dist`, then deploys through the Pages environment. `base: './'` makes generated asset URLs work on both repository subpaths and custom domains. Views use client state at one URL, so refreshes do not require a server rewrite or `404.html` hack. The app has its own Git repository inside `scala-marketing`; the parent document workspace remains separate. The manual Pages workflow is included in the private repository. GitHub Pages availability for a private repository depends on your GitHub plan; do not change repository visibility or enable paid features without approval.
+The workflow does not run on push. It builds, checks and uploads `dist`, then deploys through the Pages environment. `base: './'` makes generated asset URLs work on both repository subpaths and custom domains. Views use client state at one URL, so refreshes do not require a server rewrite or `404.html` hack. The app has its own Git repository inside `scala-marketing`; the parent document workspace remains separate. The source repository is public as requested. Publishing still requires a manual workflow dispatch and approval; making the repository public did not deploy the app.
 
-References: [Vite deployment guide](https://vite.dev/guide/static-deploy.html#github-pages), [Firebase Google popup authentication](https://firebase.google.com/docs/auth/web/google-signin), [Frappe Gantt configuration](https://docs.frappe.io/gantt/config).
+References: [Vite deployment guide](https://vite.dev/guide/static-deploy.html#github-pages), [Firebase password authentication](https://firebase.google.com/docs/auth/web/password-auth), [Frappe Gantt configuration](https://docs.frappe.io/gantt/config).
 
 ## Data model and security
 
 One private workspace per Firebase project. All invited members can read team tasks, profiles, projects, campaigns, milestones and history. This model is not for multiple isolated client organizations.
 
-- `users/{authUid}`: name, email, role, timezone. Admin provisions identities; self updates restricted to timezone.
+- `users/{authUid}`: username, name, contactEmail, role, timezone. The trusted operator provisions identities; client updates are restricted to the signed-in user’s timezone.
 - `projects/{id}`: project name and scheduling bounds; `campaigns/{id}`: project relationship.
 - `tasks/{id}`: full activity record, assignment, collaborators, start/end date, effort, status/priority, channel/type, progress, dependency IDs, tags, approval, completion timestamp, embedded checklist/comments/attachment metadata and audit history.
 - `milestones/{id}`: event timestamp and project relationship. The sample webinar is `2026-10-24T18:00:00Z` (11 AM Pacific daylight time).
@@ -98,17 +121,17 @@ Dates for all-day planning are ISO `YYYY-MM-DD` values (calendar dates, not ambi
 
 Use the **Español / English** button on login or in the app header to change the interface language. The preference persists in this browser. Status labels and date formatting change without translating stored status codes or altering user-authored comments/content.
 
-Available: project/campaign creation, editing and archive/restore; protected Firebase login, persistent Auth sessions, password reset, optional Google popup, logout; live task synchronization; creation and editing; search over task JSON including comments/project/campaign names; combined status/person/priority filters; saved browser filters; task details/checklists/comments/mentions/files/history; approval decisions; CSV export; list sorting and bulk actions; Gantt drag/resize/progress with confirmation for date changes; status board with drag and grouping; calendar month/week/agenda; workload and conflict warnings; responsive dashboard.
+Available: validated CSV/JSON bulk import of tasks/events/milestones/plans; project/campaign creation, editing and archive/restore; protected Firebase login, persistent Auth sessions, username/password login, terminal password reset, logout; live task synchronization; creation and editing; search over task JSON including comments/project/campaign names; combined status/person/priority filters; saved browser filters; task details/checklists/comments/mentions/files/history; approval decisions; CSV export; list sorting and bulk actions; Gantt drag/resize/progress with confirmation for date changes; status board with drag and grouping; calendar month/week/agenda; workload and conflict warnings; responsive dashboard.
 
 This is an initial local release, not a claim that every advanced item in the source brief is complete. Known limits:
 
 - Project/campaign metadata has a management screen. Tasks currently reference project/campaign names; stable document ID relationships and cascading rename handling are next. Invited user profiles supply the team directory when Firebase is connected. Provisioned display names must be unique because contributor assignment rules currently compare the trusted profile name.
 - Gantt supplies day/week/month and a custom quarter scale. Expandable parent groups, assignee badges, milestone diamonds and non-working-day administration require further work.
-- Calendar supports month, navigable week and agenda. A separate milestone layer and timezone-aware event times remain next.
+- Calendar supports month, navigable week and agenda. Imported milestones and events appear as activities; a dedicated milestone layer and richer timed calendar layout remain next.
 - Conflict analysis is advisory: it detects active assignment overlap, dependency order, campaign end overflow and weekly estimated-effort capacity. Effort is allocated to the start week rather than spread across workdays. Workload warnings use the configured project end, with the sample October 30 end as fallback. Milestone risk and overdue blocker propagation remain future work.
 - Task filters cover text, person, priority, status, due today/this week/overdue, unassigned work, blocked work and attachments. Exact date-range, unread controls and column visibility remain future work. Bulk selection supports individual rows and select-all.
 - Comments and checklist changes are persisted when **Save activity** is clicked; they share the task document. Rules reject stale history lengths rather than silently accepting a conflicting task edit; users must reopen a task after such a rejection. Move comments/history to subcollections and use transactional field updates before high-volume collaboration. Embedded audit history is not a tamper-proof regulatory log.
-- In-app notifications are derived live; unread tracking, all notification event types, email reminders and background notification jobs require Cloud Functions and explicit email approval. No automated marketing/reminder emails are sent; a user can explicitly request a Firebase Auth password reset.
+- In-app notifications are derived live; unread tracking, all notification event types, email reminders and background notification jobs require Cloud Functions and explicit email approval. No automated marketing/reminder emails are sent; password resets are managed through the trusted terminal command.
 - Settings expose statuses, channels, types, priorities and weekly capacity. Keep canonical status names to preserve workflow semantics. Personal timezone synchronization and broader settings controls are next.
 - The dashboard is campaign-centric, with basic activity counts and workload. Multi-project aggregation, dedicated unassigned work and more advanced reporting are next.
 - Attachments require a previously saved task and Firebase. Abandoned uploads need a scheduled cleanup policy later.

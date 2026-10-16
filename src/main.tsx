@@ -1,3 +1,6 @@
+import { BulkImport } from "./BulkImport";
+import { usernameEmail } from "./identity";
+import type { ImportRecord } from "./importer";
 import { useCatalog, Catalog } from "./catalog";
 import { useI18n, LanguageProvider, LanguageToggle } from "./i18n";
 import React, { useEffect, useRef, useState } from "react";
@@ -28,10 +31,7 @@ import {
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  sendPasswordResetEmail,
   signOut,
-  GoogleAuthProvider,
-  signInWithPopup,
 } from "firebase/auth";
 import {
   collection,
@@ -44,7 +44,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Gantt from "frappe-gantt";
 import "frappe-gantt/dist/frappe-gantt.css";
-import { auth, db, storage, configured, googleEnabled } from "./firebase";
+import { auth, db, storage, configured } from "./firebase";
 import {
   statuses,
   priorities,
@@ -79,7 +79,7 @@ function App() {
     [ready, setReady] = useState(!configured),
     [demo, setDemo] = useState(false),
     [tasks, setTasks] = useState<Task[]>([]),
-    [people, setPeople] = useState(samplePeople),
+    [people, setPeople] = useState<string[]>([]),
     [view, setView] = useState("Overview"),
     [search, setSearch] = useState(""),
     [status, setStatus] = useState(""),
@@ -87,6 +87,8 @@ function App() {
     [priority, setPriority] = useState(""),
     [timeFilter, setTimeFilter] = useState(""),
     [selected, setSelected] = useState<Task | null>(null),
+    [importOpen, setImportOpen] = useState(false),
+    [projectRequest, setProjectRequest] = useState(0),
     [toast, setToast] = useState(""),
     [error, setError] = useState(""),
     [notify, setNotify] = useState(false),
@@ -135,7 +137,13 @@ function App() {
     if (!session) return;
     if (demo) {
       setTasks(
-        JSON.parse(localStorage.getItem("scala-demo") || "null") || seedTasks(),
+        (
+          JSON.parse(localStorage.getItem("scala-demo") || "null") ||
+          seedTasks()
+        ).map((task: Task) => ({
+          ...task,
+          assignee: samplePeople.includes(task.assignee) ? task.assignee : "",
+        })),
       );
       return;
     }
@@ -161,23 +169,31 @@ function App() {
     }
   }, [toast]);
   useEffect(() => {
-    if (!session || demo)
-      return onSnapshot(doc(db, "settings", "workspace"), (d) => {
-        if (d.exists()) {
-          setCustom(d.data().statuses || statuses);
-          setTaxonomy({
-            priorities: d.data().priorities || priorities,
-            channels: d.data().channels || channels,
-            types: d.data().types || types,
-          });
-          setCapacity(d.data().capacity || 40);
-        }
-      });
+    if (!session || demo) return;
+    return onSnapshot(doc(db, "settings", "workspace"), (d) => {
+      if (d.exists()) {
+        setCustom(d.data().statuses || statuses);
+        setTaxonomy({
+          priorities: d.data().priorities || priorities,
+          channels: d.data().channels || channels,
+          types: d.data().types || types,
+        });
+        setCapacity(d.data().capacity || 40);
+      }
+    });
   }, [session, demo]);
   useEffect(() => {
     if (!session || demo) return;
     return onSnapshot(collection(db, "users"), (s) =>
-      setPeople(s.docs.map((d) => d.data().name as string).filter(Boolean)),
+      setPeople(
+        [
+          ...new Set(
+            s.docs
+              .map((d) => d.data().name as string)
+              .filter((name) => typeof name === "string" && name.trim()),
+          ),
+        ].sort((a, b) => a.localeCompare(b)),
+      ),
     );
   }, [session, demo]);
   const catalog = useCatalog(demo, !!session);
@@ -234,6 +250,46 @@ function App() {
     if (!session || !canEdit(session.role, task, session.name)) {
       setError(tr("You do not have permission to edit this activity."));
       return;
+    }
+    if (task.startAt || task.endAt) {
+      for (const value of [task.startAt, task.endAt].filter(
+        Boolean,
+      ) as string[]) {
+        if (
+          !/(Z|[+-]\d\d:\d\d)$/.test(value) ||
+          !Number.isFinite(Date.parse(value))
+        ) {
+          setError(tr("Event timestamps must include Z or a timezone offset."));
+          return;
+        }
+      }
+      if (
+        task.startAt &&
+        task.endAt &&
+        Date.parse(task.startAt) > Date.parse(task.endAt)
+      ) {
+        setError(tr("Start must be before the end."));
+        return;
+      }
+      const day = (value: string) =>
+        new Intl.DateTimeFormat("en-CA", {
+          timeZone: timezone,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(value));
+      task = {
+        ...task,
+        ...(task.startAt
+          ? {
+              startAt: new Date(task.startAt).toISOString(),
+              start: day(task.startAt),
+            }
+          : {}),
+        ...(task.endAt
+          ? { endAt: new Date(task.endAt).toISOString(), end: day(task.endAt) }
+          : {}),
+      };
     }
     if (hasDependencyCycle([...tasks.filter((t) => t.id !== task.id), task])) {
       setError(
@@ -317,6 +373,42 @@ function App() {
       setError((e as Error).message);
     }
   }
+  async function commitImport(records: ImportRecord[]) {
+    if (
+      !session ||
+      !["Administrator", "Manager", "Agency Editor"].includes(session.role)
+    )
+      throw Error("Your role cannot import activities.");
+    if (demo) {
+      const imported = records
+        .filter((r) => r.collection === "tasks")
+        .map((r) => r.data as Task);
+      const next = [...tasks, ...imported];
+      localStorage.setItem("scala-demo", JSON.stringify(next));
+      for (const r of records.filter((r) => r.collection !== "tasks"))
+        await catalog.save(
+          r.collection as "projects" | "campaigns",
+          r.data as import("./catalog").Plan,
+        );
+      setTasks(next);
+    } else {
+      const batch = writeBatch(db);
+      for (const r of records) {
+        batch.set(doc(db, r.collection, r.data.id), r.data);
+        if (r.collection === "tasks") {
+          const data = r.data as Task;
+          batch.set(doc(collection(db, "activityHistory")), {
+            taskId: data.id,
+            actor: session.uid,
+            text: "Imported activity",
+            at: data.updatedAt,
+          });
+        }
+      }
+      await batch.commit();
+    }
+    flash(tr("Import completed"));
+  }
   function newTask() {
     if (
       !session ||
@@ -325,6 +417,8 @@ function App() {
       return;
     setSelected({
       ...seedTasks()[0],
+      project: catalog.projects.find((p) => !p.archived)?.name || "",
+      campaign: catalog.campaigns.find((p) => !p.archived)?.name || "",
       id: crypto.randomUUID(),
       title: "",
       description: "",
@@ -355,6 +449,7 @@ function App() {
         error={error}
         onDemo={() => {
           setDemo(true);
+          setPeople(samplePeople);
           setSession({
             uid: "demo-admin",
             name: "Edgar Garcés",
@@ -400,18 +495,37 @@ function App() {
         <div className="sidebar-projects">
           <p className="nav-label">
             {tr("PROJECTS ")}
-            <span>{tr("＋")}</span>
+            {["Administrator", "Manager"].includes(session.role) && (
+              <button
+                className="project-add"
+                aria-label={tr("Add project")}
+                onClick={() => {
+                  setView("Projects");
+                  setProjectRequest((n) => n + 1);
+                }}
+              >
+                <Plus size={14} />
+              </button>
+            )}
           </p>
-          <button
-            onClick={() => {
-              setSearch("webinar");
-              setView("Timeline");
-            }}
-          >
-            <i />
-            {tr("Automation Webinar")}
-          </button>
-          <small>{tr("October campaign · 18 activities")}</small>
+          {catalog.projects
+            .filter((p) => !p.archived)
+            .map((project) => (
+              <button
+                key={project.id}
+                onClick={() => {
+                  setSearch(project.name);
+                  setView("Timeline");
+                }}
+              >
+                <i />
+                {project.name}
+              </button>
+            ))}
+          <small>
+            {catalog.projects.filter((p) => !p.archived).length}{" "}
+            {tr("Projects")}
+          </small>
         </div>
         <div className="sidebar-bottom">
           <div className="tip">
@@ -424,7 +538,13 @@ function App() {
             {tr("Workspace settings")}
           </button>
           <div className="profile">
-            <div className="avatar">{tr("EG")}</div>
+            <div className="avatar">
+              {session.name
+                .split(" ")
+                .map((s) => s[0])
+                .join("")
+                .slice(0, 2)}
+            </div>
             <div>
               <b>{tr(session.name)}</b>
               <small>{tr(session.role)}</small>
@@ -464,7 +584,13 @@ function App() {
               <Bell size={19} />
               <i />
             </button>
-            <div className="avatar small">{tr("EG")}</div>
+            <div className="avatar small">
+              {session.name
+                .split(" ")
+                .map((s) => s[0])
+                .join("")
+                .slice(0, 2)}
+            </div>
           </div>
         </header>
         <div className="content">
@@ -474,7 +600,9 @@ function App() {
               <h1>
                 {tr(
                   view === "Overview"
-                    ? "Good morning, Edgar"
+                    ? session.name === "Edgar Garcés"
+                      ? "Good morning, Edgar"
+                      : `${language === "es" ? "Hola" : "Good morning"}, ${session.name.split(" ")[0]}`
                     : view === "Timeline"
                       ? "Campaign timeline"
                       : view === "All activities"
@@ -492,10 +620,18 @@ function App() {
             </div>
             {tr(
               editable && (
-                <button className="primary" onClick={newTask}>
-                  <Plus size={17} />
-                  {tr("New activity")}
-                </button>
+                <>
+                  <button
+                    onClick={() => setImportOpen(true)}
+                    className="import-trigger"
+                  >
+                    {tr("Bulk import")}
+                  </button>
+                  <button className="primary new-activity" onClick={newTask}>
+                    <Plus size={17} />
+                    {tr("New activity")}
+                  </button>
+                </>
               ),
             )}
           </div>
@@ -610,9 +746,13 @@ function App() {
                       </span>
                       <div className="avatar-stack">
                         {tr(
-                          ["EG", "BA", "MA"].map((x) => (
-                            <div className="avatar small" key={x}>
-                              {tr(x)}
+                          people.slice(0, 3).map((x) => (
+                            <div className="avatar small" key={x} title={x}>
+                              {x
+                                .split(" ")
+                                .map((part) => part[0])
+                                .join("")
+                                .slice(0, 2)}
                             </div>
                           )),
                         )}
@@ -760,7 +900,7 @@ function App() {
                               )}
                             </div>
                             <div>
-                              <b>{tr(p)}</b>
+                              <b>{p}</b>
                               <small>
                                 {tr(count.length)}
                                 {tr(" activities · ")}
@@ -794,6 +934,7 @@ function App() {
             ) : view === "Projects" ? (
               <Catalog
                 catalog={catalog}
+                createRequest={projectRequest}
                 editable={["Administrator", "Manager"].includes(session.role)}
                 onOpen={(name) => {
                   setSearch(name);
@@ -821,7 +962,7 @@ function App() {
                         "UTC",
                       ].map((x) => (
                         <option key={x} value={x}>
-                          {tr(x)}
+                          {x}
                         </option>
                       )),
                     )}
@@ -919,7 +1060,7 @@ function App() {
                     {tr(
                       custom.map((x) => (
                         <option key={x} value={x}>
-                          {tr(x)}
+                          {x}
                         </option>
                       )),
                     )}
@@ -933,7 +1074,7 @@ function App() {
                     {tr(
                       people.map((x) => (
                         <option key={x} value={x}>
-                          {tr(x)}
+                          {x}
                         </option>
                       )),
                     )}
@@ -947,7 +1088,7 @@ function App() {
                     {tr(
                       priorities.map((x) => (
                         <option key={x} value={x}>
-                          {tr(x)}
+                          {x}
                         </option>
                       )),
                     )}
@@ -1051,7 +1192,11 @@ function App() {
                       statuses={custom}
                     />
                   ) : view === "Calendar" ? (
-                    <Calendar tasks={filtered} open={setSelected} />
+                    <Calendar
+                      tasks={filtered}
+                      open={setSelected}
+                      timezone={timezone}
+                    />
                   ) : view === "Workload" ? (
                     <div className="workload">
                       {tr(
@@ -1136,6 +1281,24 @@ function App() {
           </footer>
         </div>
       </main>
+      {importOpen && (
+        <BulkImport
+          options={{
+            uid: session.uid,
+            name: session.name,
+            role: session.role,
+            people,
+            projects: catalog.projects,
+            campaigns: catalog.campaigns,
+            tasks,
+            statuses: custom,
+            ...taxonomy,
+            timezone,
+          }}
+          onCommit={commitImport}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
       {tr(
         selected && (
           <TaskPanel
@@ -1225,7 +1388,7 @@ function App() {
 }
 function Login({ onDemo, error }: { onDemo: () => void; error: string }) {
   const { t: tr } = useI18n();
-  const [email, setEmail] = useState(""),
+  const [username, setUsername] = useState(""),
     [password, setPassword] = useState(""),
     [message, setMessage] = useState(error),
     [busy, setBusy] = useState(false);
@@ -1248,7 +1411,11 @@ function Login({ onDemo, error }: { onDemo: () => void; error: string }) {
           e.preventDefault();
           setBusy(true);
           try {
-            await signInWithEmailAndPassword(auth, email, password);
+            await signInWithEmailAndPassword(
+              auth,
+              usernameEmail(username),
+              password,
+            );
           } catch (e) {
             setMessage((e as Error).message);
           } finally {
@@ -1260,13 +1427,15 @@ function Login({ onDemo, error }: { onDemo: () => void; error: string }) {
         <h1>{tr("Let’s move things forward.")}</h1>
         <p>{tr("Sign in to Scala Marketing.")}</p>
         <label>
-          {tr("Email address")}
+          {tr("Username")}
           <input
-            type="email"
+            type="text"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+            autoCapitalize="none"
+            spellCheck={false}
           />
         </label>
         <label>
@@ -1282,33 +1451,11 @@ function Login({ onDemo, error }: { onDemo: () => void; error: string }) {
         <button className="primary" disabled={busy || !configured}>
           {tr(busy ? "Signing in…" : "Sign in")}
         </button>
-        <button
-          type="button"
-          onClick={async () => {
-            try {
-              await sendPasswordResetEmail(auth, email);
-              setMessage("Password reset requested. Check your inbox.");
-            } catch (e) {
-              setMessage((e as Error).message);
-            }
-          }}
-        >
-          {tr("Forgot password?")}
-        </button>
-        {tr(
-          googleEnabled && (
-            <button
-              type="button"
-              onClick={() =>
-                signInWithPopup(auth, new GoogleAuthProvider()).catch((e) =>
-                  setMessage(e.message),
-                )
-              }
-            >
-              {tr("Continue with Google")}
-            </button>
-          ),
-        )}
+        <p className="login-note">
+          {tr(
+            "Accounts and password resets are managed by your administrator through the terminal.",
+          )}
+        </p>
         <hr />
         <button type="button" className="demo-button" onClick={onDemo}>
           {tr("Explore the local demo ")}
@@ -1653,8 +1800,40 @@ function Board({
     </>
   );
 }
-function Calendar({ tasks, open }: { tasks: Task[]; open: (t: Task) => void }) {
+function Calendar({
+  tasks,
+  open,
+  timezone,
+}: {
+  tasks: Task[];
+  open: (t: Task) => void;
+  timezone: string;
+}) {
   const { t: tr, language } = useI18n();
+  const eventDay = (value: string) =>
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: timezone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(value));
+  const scheduledTasks = tasks.map((t) =>
+    t.startAt
+      ? {
+          ...t,
+          start: eventDay(t.startAt),
+          end: eventDay(t.endAt || t.startAt),
+        }
+      : t,
+  );
+  const eventTime = (t: Task) =>
+    t.startAt
+      ? new Intl.DateTimeFormat(language === "es" ? "es-EC" : "en-US", {
+          timeZone: timezone,
+          hour: "numeric",
+          minute: "2-digit",
+        }).format(new Date(t.startAt))
+      : "";
   const [month, setMonth] = useState(new Date(2026, 9, 1)),
     [mode, setMode] = useState("Month"),
     [week, setWeek] = useState(0);
@@ -1709,13 +1888,14 @@ function Calendar({ tasks, open }: { tasks: Task[]; open: (t: Task) => void }) {
       </div>
       {tr(
         mode === "Agenda" ? (
-          tasks
+          scheduledTasks
             .filter((t) => new Date(t.end + "T12:00:00").getMonth() === mo)
             .map((t) => (
               <button className="work-task" onClick={() => open(t)} key={t.id}>
                 {tr(t.end)}
                 {tr(" · ")}
-                {tr(t.title)}
+                {t.kind === "milestone" ? "◈ " : t.kind === "event" ? "◷ " : ""}
+                {eventTime(t)} {tr(t.title)}
               </button>
             ))
         ) : (
@@ -1741,11 +1921,17 @@ function Calendar({ tasks, open }: { tasks: Task[]; open: (t: Task) => void }) {
                   <div className={d.getMonth() !== mo ? "muted" : ""} key={key}>
                     <span>{tr(d.getDate())}</span>
                     {tr(
-                      tasks
+                      scheduledTasks
                         .filter((t) => t.end === key || t.start === key)
                         .map((t) => (
                           <button key={t.id} onClick={() => open(t)}>
-                            {tr(t.start === key ? "↗" : "⚑")} {tr(t.title)}
+                            {tr(t.start === key ? "↗" : "⚑")}{" "}
+                            {t.kind === "milestone"
+                              ? "◈ "
+                              : t.kind === "event"
+                                ? "◷ "
+                                : ""}
+                            {eventTime(t)} {tr(t.title)}
                           </button>
                         )),
                     )}
@@ -2066,6 +2252,20 @@ function TaskPanel({
                   />
                 </label>
                 <label>
+                  {tr("Record type")}
+                  <select
+                    aria-label={tr("Record type")}
+                    value={t.kind || "task"}
+                    onChange={(e) => field("kind", e.target.value)}
+                  >
+                    {["task", "event", "milestone"].map((kind) => (
+                      <option key={kind} value={kind}>
+                        {tr(kind)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
                   {tr("Description")}
                   <textarea
                     rows={3}
@@ -2073,6 +2273,26 @@ function TaskPanel({
                     onChange={(e) => field("description", e.target.value)}
                   />
                 </label>
+                {t.kind === "event" && (
+                  <div className="form-grid">
+                    <label>
+                      {tr("Event start (ISO with timezone)")}
+                      <input
+                        placeholder="2026-10-24T18:00:00Z"
+                        value={t.startAt || ""}
+                        onChange={(e) => field("startAt", e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      {tr("Event end (ISO with timezone)")}
+                      <input
+                        placeholder="2026-10-24T19:00:00Z"
+                        value={t.endAt || ""}
+                        onChange={(e) => field("endAt", e.target.value)}
+                      />
+                    </label>
+                  </div>
+                )}
                 <div className="form-grid">
                   {tr(
                     [
