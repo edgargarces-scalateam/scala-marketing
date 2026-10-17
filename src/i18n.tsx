@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 type Language = "en" | "es";
 const spanish: Record<string, string> = {
+  "Active project": "Proyecto activo",
+  "Your workspace is ready": "Tu espacio está listo",
+  "Create your first project, or import a plan to get started.":
+    "Crea tu primer proyecto o importa un plan para empezar.",
+  "No blocked activities.": "No hay actividades bloqueadas.",
+  "File attachments are not enabled for this workspace.":
+    "Los archivos adjuntos no están habilitados en este espacio.",
   "Add project": "Agregar proyecto",
   Username: "Nombre de usuario",
   "Accounts and password resets are managed by your administrator through the terminal.":

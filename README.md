@@ -1,6 +1,6 @@
 # Scala Marketing Command Center
 
-Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Production hosting target: **GitHub Pages**. Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The public GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Nothing has been deployed.
+Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Production hosting target: **GitHub Pages**. Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The public GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Production Authentication and Firestore are configured on the free plan. Attachments are disabled; billing is not enabled. GitHub Pages publication is managed by the manual deployment workflow.
 
 ## Prerequisites and installation
 
@@ -25,7 +25,7 @@ npm run dev
 
 The explicit seed targets only loopback emulators and `demo-scala`; it never runs automatically. The emulator UI is at http://127.0.0.1:4000. Sign in with username `edgar` / password `ScalaDemo2026!` after seeding. Those credentials are local sample credentials only. Restart Vite after changing environment values. To retain emulator data use `firebase emulators:start --project demo-scala --export-on-exit ./emulator-data --import ./emulator-data` (create the initial export without `--import`).
 
-## Production Firebase services — requires operator approval
+## Production Firebase configuration
 
 1. The project and Web app already exist: `scala-marketing-2026`. Its public browser configuration is in the ignored `.env.production.local` file. Copy values to `.env.local` only when ready to connect local development to the cloud. Use the variable names in `.env.example`. Set `VITE_USE_EMULATORS=false`.
 2. Enable Authentication → Email/Password in Firebase. The app presents **Username + Password**; the username is normalized and mapped to an internal `USERNAME@users.scala.invalid` Firebase Auth identifier. There is no public username lookup or self-registration. Add your `edgargarces-scalateam.github.io` hostname (or custom domain) under Authentication → Settings → Authorized domains.
@@ -38,13 +38,13 @@ Firebase Web API keys and app IDs are public project identifiers, not server cre
 
 ## Initial administrator and invitations
 
-Install the declared dependencies, then authenticate the trusted operator with Application Default Credentials (for example `gcloud auth application-default login`) using an identity authorized for this Firebase project. Keep all credentials outside this repository.
+Install the declared dependencies, then authenticate the trusted operator with Application Default Credentials (for example `gcloud auth application-default login`) using an identity authorized for this Firebase project. Alternatively, sign in with `firebase login` and add `--firebase-cli` to the provisioning command; that mode reuses the CLI login in memory without exporting a credential file. Keep all credentials outside this repository.
 
 ```sh
 npm run provision-user -- --project scala-marketing-2026 --username edgar --name 'Edgar Garcés' --role Administrator --bootstrap
 ```
 
-The terminal securely prompts for a password and confirmation without echoing either. Use at least 12 characters. Never supply a password in shell arguments, a Firestore document, a CSV import or chat. Bootstrap refuses when an administrator already exists.
+The terminal securely prompts for a password and confirmation without echoing either. Use at least 8 characters. Never supply a password in shell arguments, a Firestore document, a CSV import or chat. Bootstrap refuses when an administrator already exists.
 
 For another team member, omit `--bootstrap` and choose a role:
 
@@ -56,7 +56,7 @@ npm run provision-user -- --project scala-marketing-2026 --username colleague.na
 
 To reset a password, rerun the trusted command for that username with `--set-password`. It securely prompts for the new password. Existing usernames keep their password when only profile fields change. To migrate an older email/password identity while preserving its UID, pass its original Auth email with `--email` and the desired `--username`. A provisioning event is recorded without logging the password. No email is sent; distribute initial credentials privately.
 
-Browser clients, including administrators, cannot create profiles, change roles or delete users. The Admin SDK terminal tool bypasses client Security Rules using the authorized operator's ADC credentials. No production profile has been created automatically. The script initializes default workspace settings when missing.
+Browser clients, including administrators, cannot create profiles, change roles or delete users. The Admin SDK terminal tool bypasses client Security Rules using the authorized operator's ADC credentials. Production accounts are provisioned only through this operator flow, never from website registration. The script initializes default workspace settings when missing.
 
 ## Bulk import
 
@@ -142,3 +142,7 @@ Do not enable a production team until rules have passed in your environment and 
 ## Dependency audit
 
 Runtime dependencies passed `npm audit --omit=dev` with zero advisories during validation. The latest Firebase CLI still brings seven development-only advisories (including a high-severity `braces` advisory) through its transitive tools. No affected CLI code ships in the browser bundle. Critical test/CLI findings were removed by updating dependencies; the Firebase Node gRPC dependency uses a patched compatible override. Review these development dependencies again before using the toolchain on untrusted files. Use Node 22.18+ or 24 LTS; this machine’s Node 25 emits toolchain engine warnings although the checks pass.
+
+## Production launch settings
+
+Production uses `VITE_ENABLE_DEMO=false` and `VITE_ATTACHMENTS_ENABLED=false`. The live login page offers username/password only; demo entry is available during local development. File uploads are disabled because the user selected the free plan. No Storage bucket or billing account was enabled. The default Firestore database uses the standard edition in `us-east1`, with its free tier and paid backup/PITR features disabled. Production signup is disabled at the Auth service; the trusted terminal can still provision requested accounts.

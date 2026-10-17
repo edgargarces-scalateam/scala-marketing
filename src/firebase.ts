@@ -19,3 +19,8 @@ if (env.DEV && env.VITE_USE_EMULATORS === "true") {
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
   connectStorageEmulator(storage, "127.0.0.1", 9199);
 }
+
+export const demoEnabled = env.DEV || env.VITE_ENABLE_DEMO === "true";
+export const attachmentsEnabled = env.DEV
+  ? env.VITE_ATTACHMENTS_ENABLED !== "false"
+  : env.VITE_ATTACHMENTS_ENABLED === "true";

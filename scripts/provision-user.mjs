@@ -1,10 +1,12 @@
 // Trusted terminal only. Admin credentials use ADC outside this repository.
-import { initializeApp, applicationDefault } from "firebase-admin/app";
+import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { operatorFirestore } from "./operator-firestore.mjs";
 import { getFirestore } from "firebase-admin/firestore";
 import { parseArgs } from "node:util";
 import { statuses, priorities, channels, types } from "../src/domain.ts";
 import { normalizeUsername, usernameEmail } from "../src/identity.ts";
+import { operatorCredential } from "./operator-credential.mjs";
 import { readPassword } from "./password-prompt.mjs";
 const { values } = parseArgs({
   options: {
@@ -15,6 +17,7 @@ const { values } = parseArgs({
     role: { type: "string" },
     bootstrap: { type: "boolean", default: false },
     "set-password": { type: "boolean", default: false },
+    "firebase-cli": { type: "boolean", default: false },
   },
 });
 const roles = [
@@ -39,8 +42,13 @@ if (values.project.startsWith("demo-"))
   throw Error("Use npm run seed for local development.");
 if (values.bootstrap && values.role !== "Administrator")
   throw Error("Bootstrap requires Administrator role.");
-initializeApp({ credential: applicationDefault(), projectId: values.project });
-const db = getFirestore(),
+initializeApp({
+  credential: await operatorCredential(values["firebase-cli"]),
+  projectId: values.project,
+});
+const db = values["firebase-cli"]
+    ? await operatorFirestore(values.project)
+    : getFirestore(),
   auth = getAuth();
 if (
   values.bootstrap &&
@@ -78,8 +86,8 @@ if (names.docs.some((d) => d.id !== user?.uid))
 let password;
 if (!user || values["set-password"]) {
   password = await readPassword();
-  if (password.length < 12)
-    throw Error("Use a password of at least 12 characters.");
+  if (password.length < 8)
+    throw Error("Use a password of at least 8 characters.");
   if (password !== (await readPassword("Confirm password: ")))
     throw Error("Passwords do not match.");
 }
@@ -112,14 +120,12 @@ await db
     },
     { merge: true },
   );
-await db
-  .collection("activityHistory")
-  .add({
-    actor: "trusted-operator",
-    text: `Provisioned username ${username} as ${values.role}`,
-    at: new Date().toISOString(),
-    targetUid: user.uid,
-  });
+await db.collection("activityHistory").add({
+  actor: "trusted-operator",
+  text: `Provisioned username ${username} as ${values.role}`,
+  at: new Date().toISOString(),
+  targetUid: user.uid,
+});
 console.log(
   `Profile ready. Username: ${username}. Passwords are stored only in Firebase Authentication. Distribute credentials privately.`,
 );

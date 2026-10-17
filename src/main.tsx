@@ -44,7 +44,14 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import Gantt from "frappe-gantt";
 import "frappe-gantt/dist/frappe-gantt.css";
-import { auth, db, storage, configured } from "./firebase";
+import {
+  auth,
+  db,
+  storage,
+  configured,
+  demoEnabled,
+  attachmentsEnabled,
+} from "./firebase";
 import {
   statuses,
   priorities,
@@ -723,75 +730,155 @@ function App() {
                   )}
                 </div>
                 <div className="dashboard-grid">
-                  <section className="panel campaign">
-                    <div className="panel-title">
-                      <h2>{tr("Active campaign")}</h2>
-                      <span className="pill blue">{tr("In progress")}</span>
-                    </div>
-                    <p className="eyebrow">{tr("WEBINAR · OCTOBER 2026")}</p>
-                    <h2>
-                      {tr("What should your business ")}
-                      <br />
-                      {tr("automate first?")}
-                    </h2>
-                    <p>
-                      {tr(
-                        "From first idea to live webinar. Every detail, in one place.",
-                      )}
-                    </p>
-                    <div className="campaign-meta">
-                      <span>
-                        <CalendarDays size={16} />
-                        {tr(" Oct 24 · 11:00 AM Pacific")}
-                      </span>
-                      <div className="avatar-stack">
-                        {tr(
-                          people.slice(0, 3).map((x) => (
-                            <div className="avatar small" key={x} title={x}>
-                              {x
-                                .split(" ")
-                                .map((part) => part[0])
-                                .join("")
-                                .slice(0, 2)}
-                            </div>
-                          )),
-                        )}
+                  {demo ? (
+                    <section className="panel campaign">
+                      <div className="panel-title">
+                        <h2>{tr("Active campaign")}</h2>
+                        <span className="pill blue">{tr("In progress")}</span>
                       </div>
-                    </div>
-                    <div className="progress-label">
-                      <span>{tr("Campaign progress")}</span>
-                      <b>
+                      <p className="eyebrow">{tr("WEBINAR · OCTOBER 2026")}</p>
+                      <h2>
+                        {tr("What should your business ")}
+                        <br />
+                        {tr("automate first?")}
+                      </h2>
+                      <p>
                         {tr(
-                          Math.round(
-                            tasks.reduce((a, t) => a + t.progress, 0) /
-                              (tasks.length || 1),
-                          ),
+                          "From first idea to live webinar. Every detail, in one place.",
                         )}
-                        {tr("%")}
-                      </b>
-                    </div>
-                    <div className="progress">
-                      <i
-                        style={{
-                          width: `${tasks.reduce((a, t) => a + t.progress, 0) / (tasks.length || 1)}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="campaign-footer">
-                      <span>
-                        {tr(
-                          tasks.filter((t) => t.status === "Completed").length,
-                        )}
-                        {tr(" of ")}
-                        {tr(tasks.length)}
-                        {tr(" activities completed")}
-                      </span>
-                      <button onClick={() => setView("Timeline")}>
-                        {tr("View timeline ")}
-                        <ArrowUpRight size={16} />
-                      </button>
-                    </div>
-                  </section>
+                      </p>
+                      <div className="campaign-meta">
+                        <span>
+                          <CalendarDays size={16} />
+                          {tr(" Oct 24 · 11:00 AM Pacific")}
+                        </span>
+                        <div className="avatar-stack">
+                          {tr(
+                            people.slice(0, 3).map((x) => (
+                              <div className="avatar small" key={x} title={x}>
+                                {x
+                                  .split(" ")
+                                  .map((part) => part[0])
+                                  .join("")
+                                  .slice(0, 2)}
+                              </div>
+                            )),
+                          )}
+                        </div>
+                      </div>
+                      <div className="progress-label">
+                        <span>{tr("Campaign progress")}</span>
+                        <b>
+                          {tr(
+                            Math.round(
+                              tasks.reduce((a, t) => a + t.progress, 0) /
+                                (tasks.length || 1),
+                            ),
+                          )}
+                          {tr("%")}
+                        </b>
+                      </div>
+                      <div className="progress">
+                        <i
+                          style={{
+                            width: `${tasks.reduce((a, t) => a + t.progress, 0) / (tasks.length || 1)}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="campaign-footer">
+                        <span>
+                          {tr(
+                            tasks.filter((t) => t.status === "Completed")
+                              .length,
+                          )}
+                          {tr(" of ")}
+                          {tr(tasks.length)}
+                          {tr(" activities completed")}
+                        </span>
+                        <button onClick={() => setView("Timeline")}>
+                          {tr("View timeline ")}
+                          <ArrowUpRight size={16} />
+                        </button>
+                      </div>
+                    </section>
+                  ) : (
+                    <section className="panel campaign">
+                      <div className="panel-title">
+                        <h2>{tr("Active project")}</h2>
+                      </div>
+                      {catalog.projects.find((p) => !p.archived) ? (
+                        (() => {
+                          const project = catalog.projects.find(
+                            (p) => !p.archived,
+                          )!;
+                          const work = tasks.filter(
+                            (t) => t.project === project.name,
+                          );
+                          const progress = Math.round(
+                            work.reduce((n, t) => n + t.progress, 0) /
+                              (work.length || 1),
+                          );
+                          return (
+                            <>
+                              <h2>{project.name}</h2>
+                              <p>{project.description}</p>
+                              <p>
+                                {date(project.start)} — {date(project.end)}
+                              </p>
+                              <div className="progress-label">
+                                <span>{tr("Campaign progress")}</span>
+                                <b>{progress}%</b>
+                              </div>
+                              <div className="progress">
+                                <i style={{ width: `${progress}%` }} />
+                              </div>
+                              <div className="campaign-footer">
+                                <span>
+                                  {
+                                    work.filter((t) => t.status === "Completed")
+                                      .length
+                                  }{" "}
+                                  / {work.length} {tr("activities completed")}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    setSearch(project.name);
+                                    setView("Timeline");
+                                  }}
+                                >
+                                  {tr("View timeline")}{" "}
+                                  <ArrowUpRight size={16} />
+                                </button>
+                              </div>
+                            </>
+                          );
+                        })()
+                      ) : (
+                        <>
+                          <h2>{tr("Your workspace is ready")}</h2>
+                          <p>
+                            {tr(
+                              "Create your first project, or import a plan to get started.",
+                            )}
+                          </p>
+                          {["Administrator", "Manager"].includes(
+                            session.role,
+                          ) && (
+                            <button
+                              className="primary"
+                              onClick={() => {
+                                setView("Projects");
+                                setProjectRequest((n) => n + 1);
+                              }}
+                            >
+                              <Plus size={16} />
+                              {tr("New project")}
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </section>
+                  )}
                   <section className="panel attention">
                     <div className="panel-title">
                       <h2>{tr("Needs your attention")}</h2>
@@ -829,7 +916,12 @@ function App() {
                           )}
                           {tr(" activity is blocked")}
                         </b>
-                        <p>{tr("Meta Pixel configuration needs a hand.")}</p>
+                        <p>
+                          {tr(
+                            tasks.find((t) => t.status === "Blocked")?.title ||
+                              "No blocked activities.",
+                          )}
+                        </p>
                         <button
                           onClick={() =>
                             setSelected(
@@ -1456,12 +1548,16 @@ function Login({ onDemo, error }: { onDemo: () => void; error: string }) {
             "Accounts and password resets are managed by your administrator through the terminal.",
           )}
         </p>
-        <hr />
-        <button type="button" className="demo-button" onClick={onDemo}>
-          {tr("Explore the local demo ")}
-          <ArrowUpRight size={16} />
-        </button>
-        <small>{tr("Sample data · no account required")}</small>
+        {demoEnabled && (
+          <>
+            <hr />
+            <button type="button" className="demo-button" onClick={onDemo}>
+              {tr("Explore the local demo ")}
+              <ArrowUpRight size={16} />
+            </button>
+            <small>{tr("Sample data · no account required")}</small>
+          </>
+        )}
         {tr(
           !configured && (
             <p className="login-note">
@@ -1681,7 +1777,9 @@ function Timeline({
     <section className="panel timeline">
       <div className="panel-title">
         <div>
-          <h2>{tr("October webinar launch")}</h2>
+          <h2>
+            {tr(tasks[0]?.campaign || tasks[0]?.project || "Campaign timeline")}
+          </h2>
           <p>{tr("Drag to reschedule · click any activity for details")}</p>
         </div>
         <select
@@ -2519,7 +2617,7 @@ function TaskPanel({
                   <input
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.webp"
-                    disabled={demo}
+                    disabled={demo || !attachmentsEnabled}
                     onChange={async (e) => {
                       const f = e.target.files?.[0];
                       if (!f) return;
@@ -2558,7 +2656,11 @@ function TaskPanel({
                 </label>
                 <p>
                   {tr(
-                    demo ? "Connect Firebase Storage to upload files." : upload,
+                    !attachmentsEnabled
+                      ? "File attachments are not enabled for this workspace."
+                      : demo
+                        ? "Connect Firebase Storage to upload files."
+                        : upload,
                   )}
                 </p>
                 {tr(

@@ -14,6 +14,8 @@ Passed against the final application source:
 
 Build note: the initial JavaScript bundle is approximately 920 kB before gzip (~280 kB gzipped). Vite warns about its size; route/vendor code splitting is a recommended performance improvement.
 
-Cloud state: free Firebase project `scala-marketing-2026` and Web app registered; no billing enabled, no application deployed, no production users or team invitations created. The real public Web configuration is saved only in ignored `.env.production.local`. The source repository is now public by explicit user request. The GitHub Pages workflow remains manual and rejects missing Firebase build variables. Profiles/password changes are terminal-only; no production profiles were created.
+Production state: Firebase Authentication email/password is enabled, public signup is disabled, the GitHub Pages hostname is authorized, and Firestore rules/indexes are deployed. The standard default database in `us-east1` reports `freeTier: true`; billing, paid backups/PITR and Storage are not enabled. Three requested accounts were provisioned via hidden terminal input: two Administrators and one Agency Editor. No passwords are stored in source, Firestore or GitHub variables.
 
-Production Firebase Authentication providers, Firestore database/location, deployed security rules, Storage availability/billing and real team identities still require setup/review. Emulator tests verify local rules, not deployed production access. This local release intentionally leaves advanced features listed in README for later implementation.
+Production SDK checks passed for all three username/password logins, matching role profiles and the three-person registered directory. Agency administrator-settings writes and anonymous reads were denied as expected. The live build disables demo entry and file uploads. No campaign/task sample data was seeded into production.
+
+Publishing uses the manually triggered GitHub Pages workflow. Advanced functional limitations remain listed in README.

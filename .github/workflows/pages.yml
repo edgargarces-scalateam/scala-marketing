@@ -27,6 +27,8 @@ jobs:
           VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
           VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
           VITE_USE_EMULATORS: "false"
+          VITE_ENABLE_DEMO: "false"
+          VITE_ATTACHMENTS_ENABLED: "false"
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
