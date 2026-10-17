@@ -19,3 +19,5 @@ Production state: Firebase Authentication email/password is enabled, public sign
 Production SDK checks passed for all three username/password logins, matching role profiles and the three-person registered directory. Agency administrator-settings writes and anonymous reads were denied as expected. The live build disables demo entry and file uploads. No campaign/task sample data was seeded into production.
 
 Publishing uses the manually triggered GitHub Pages workflow. Advanced functional limitations remain listed in README.
+
+GitHub Pages production deployment succeeded. The live browser verified administrator username/password sign-in, a connected empty production workspace, all three registered assignees, working New Activity form, disabled attachment upload and absence of demo entry on the production login page. Workspace started without sample projects/tasks.

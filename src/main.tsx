@@ -423,7 +423,15 @@ function App() {
     )
       return;
     setSelected({
-      ...seedTasks()[0],
+      kind: "task",
+      collaborators: [],
+      channel: "Other",
+      type: "Other",
+      effort: 0,
+      priority: "Medium",
+      tags: [],
+      updatedBy: session.uid,
+      updatedAt: new Date().toISOString(),
       project: catalog.projects.find((p) => !p.archived)?.name || "",
       campaign: catalog.campaigns.find((p) => !p.archived)?.name || "",
       id: crypto.randomUUID(),

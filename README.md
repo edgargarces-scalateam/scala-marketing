@@ -1,6 +1,6 @@
 # Scala Marketing Command Center
 
-Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Production hosting target: **GitHub Pages**. Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The public GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Production Authentication and Firestore are configured on the free plan. Attachments are disabled; billing is not enabled. GitHub Pages publication is managed by the manual deployment workflow.
+Local-first development build of Scala’s shared marketing workspace. React 19 + TypeScript + Vite; Firebase Authentication, Firestore and Storage; MIT-licensed Frappe Gantt. Live application: **https://edgargarces-scalateam.github.io/scala-marketing/** (GitHub Pages). Firebase project `scala-marketing-2026` and its Web app have been created without enabling billing. The public GitHub repository is https://github.com/edgargarces-scalateam/scala-marketing. Production Authentication and Firestore are configured on the free plan. Attachments are disabled; billing is not enabled. GitHub Pages publication is managed by the manual deployment workflow.
 
 ## Prerequisites and installation
 
