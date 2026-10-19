@@ -170,6 +170,7 @@ const spanish: Record<string, string> = {
   "Automation Webinar": "Webinar de automatización",
   "Drag to reschedule · click any activity for details":
     "Arrastra para reprogramar · abre una actividad para ver sus detalles",
+  "Click an activity to view details or edit its dates.": "Haz clic en una actividad para ver los detalles o editar sus fechas.",
   "Timeline scale": "Escala del cronograma",
   Day: "Día",
   Week: "Semana",

@@ -776,18 +776,6 @@ footer small {
   padding: 20px;
   overflow: hidden;
 }
-.gantt-container {
-  max-height: 650px;
-}
-.gantt .bar-wrapper.blocked .bar {
-  fill: #e59aa3;
-}
-.gantt .bar-wrapper.completed .bar {
-  fill: #90c9ab;
-}
-.gantt .bar-progress {
-  fill: #0866f1;
-}
 .board {
   display: flex;
   overflow-x: auto;
@@ -1374,13 +1362,6 @@ th {
 .campaign-footer {
   color: #6c7f98;
 }
-.gantt .bar-wrapper:focus-visible {
-  outline: 2px solid #0866f1;
-  outline-offset: 4px;
-}
-.gantt .bar-wrapper .bar-label {
-  font-weight: 500;
-}
 .language-toggle {
   font-size: 11px;
   border: 1px solid #dbe4f1;
@@ -1516,3 +1497,24 @@ th {
     flex-shrink: 0;
   }
 }
+
+.schedule-scroll { overflow: auto; max-height: 650px; border: 1px solid #e0e5ed; border-radius: 8px; }
+.schedule-heading, .schedule-row { display: flex; }
+.schedule-heading { position: sticky; top: 0; z-index: 4; background: #f5f7fb; min-height: 44px; }
+.schedule-label { position: sticky; left: 0; flex: 0 0 260px; width: 260px; background: white; z-index: 2; padding: 12px; border: 0; border-right: 1px solid #e0e5ed; border-radius: 0; text-align: left; white-space: normal; }
+.schedule-heading .schedule-label { background: #f5f7fb; }
+.schedule-label strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.schedule-label small { display: block; margin-top: 5px; color: #65738a; font-size: 11px; }
+.schedule-row { border-top: 1px solid #e7ebf2; height: 68px; }
+.schedule-dates { display: flex; align-items: stretch; }
+.schedule-dates span { flex-shrink: 0; padding: 12px 6px; border-right: 1px solid #e0e5ed; font-size: 11px; }
+.schedule-track { position: relative; flex-shrink: 0; }
+.schedule-bar { position: absolute; top: 18px; height: 30px; min-width: 8px; padding: 0; background: #0866f1; color: white; border: 0; border-radius: 5px; overflow: hidden; text-align: left; }
+.schedule-bar span { display: block; padding: 6px 8px; white-space: nowrap; font-size: 11px; overflow: hidden; text-overflow: ellipsis; }
+.schedule-bar.done { background: #26835b; }
+.schedule-bar.blocked { background: #b54755; }
+.schedule-bar.milestone { background: #7357bc; }
+.schedule-today { position: absolute; top: 0; bottom: 0; border-left: 2px solid #e89b26; pointer-events: none; }
+.schedule button:focus-visible { outline: 3px solid #172d4c; outline-offset: -3px; }
+
+.schedule-gridline { position: absolute; top: 0; bottom: 0; border-left: 1px solid #e7ebf2; pointer-events: none; }

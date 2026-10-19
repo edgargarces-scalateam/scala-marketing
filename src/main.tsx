@@ -42,8 +42,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import Gantt from "frappe-gantt";
-import "frappe-gantt/dist/frappe-gantt.css";
+import { Timeline } from "./Timeline";
 import {
   auth,
   db,
@@ -1280,8 +1279,6 @@ function App() {
                     <Timeline
                       tasks={filtered}
                       open={setSelected}
-                      edit={editable}
-                      save={save}
                     />
                   ) : view === "Board" ? (
                     <Board
@@ -1665,152 +1662,6 @@ function TaskTable({
         ),
       )}
     </div>
-  );
-}
-function localDate(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function Timeline({
-  tasks,
-  open,
-  save,
-  edit,
-}: {
-  tasks: Task[];
-  open: (t: Task) => void;
-  save: (t: Task, s: string) => void;
-  edit: boolean;
-}) {
-  const { t: tr, language } = useI18n();
-  const el = useRef<HTMLDivElement>(null);
-  const [mode, setMode] = useState("Week");
-  useEffect(() => {
-    if (!el.current) return;
-    el.current.innerHTML = "";
-    if (!tasks.length) return;
-    new Gantt(
-      el.current,
-      tasks.map((t) => ({
-        id: t.id,
-        name: tr(t.title)
-          .replaceAll("&", "&amp;")
-          .replaceAll("<", "&lt;")
-          .replaceAll(">", "&gt;"),
-        start: t.start,
-        end: t.end,
-        progress: t.progress,
-        dependencies: t.dependencies.join(","),
-        custom_class:
-          t.status === "Blocked"
-            ? "blocked"
-            : t.status === "Completed"
-              ? "completed"
-              : "",
-      })),
-      {
-        view_mode: mode,
-        language,
-        move_dependencies: false,
-        popup: false,
-        view_modes: [
-          mode === "Quarter"
-            ? {
-                name: "Quarter",
-                padding: "1y",
-                step: "3m",
-                column_width: 180,
-                date_format: "YYYY-MM",
-                lower_text: (d: Date) => `Q${Math.floor(d.getMonth() / 3) + 1}`,
-                upper_text: "YYYY",
-                snap_at: "7d",
-              }
-            : mode,
-        ],
-        readonly: !edit,
-        scroll_to: tasks[0].start,
-        on_click: (t: any) => {
-          const task = tasks.find((x) => x.id === t.id);
-          if (task) open(task);
-        },
-        on_date_change: (t: any, start: Date, end: Date) => {
-          const task = tasks.find((x) => x.id === t.id);
-          if (
-            task &&
-            confirm(
-              `Reschedule ${task.title} to ${start.toLocaleDateString()} – ${end.toLocaleDateString()}?`,
-            )
-          )
-            save(
-              {
-                ...task,
-                start: localDate(start),
-                end: localDate(end),
-              },
-              "Changed schedule",
-            );
-          else setMode((m) => (m === "Week" ? "Day" : "Week"));
-        },
-        on_progress_change: (t: any, progress: number) => {
-          const task = tasks.find((x) => x.id === t.id);
-          if (task)
-            save(
-              {
-                ...task,
-                progress,
-              },
-              "Updated progress",
-            );
-        },
-      } as any,
-    );
-    el.current.querySelectorAll<SVGElement>(".bar-wrapper").forEach((node) => {
-      node.setAttribute("tabindex", "0");
-      node.setAttribute("role", "button");
-      node.setAttribute(
-        "aria-label",
-        tr(
-          tasks.find((t) => t.id === node.dataset.id)?.title || "Open activity",
-        ),
-      );
-      node.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          const task = tasks.find((t) => t.id === node.dataset.id);
-          if (task) open(task);
-        }
-      });
-    });
-  }, [tasks, mode, edit, language]);
-  return (
-    <section className="panel timeline">
-      <div className="panel-title">
-        <div>
-          <h2>
-            {tr(tasks[0]?.campaign || tasks[0]?.project || "Campaign timeline")}
-          </h2>
-          <p>{tr("Drag to reschedule · click any activity for details")}</p>
-        </div>
-        <select
-          aria-label={tr("Timeline scale")}
-          value={mode}
-          onChange={(e) => setMode(e.target.value)}
-        >
-          {tr(
-            ["Day", "Week", "Month", "Quarter"].map((m) => (
-              <option key={m} value={m}>
-                {tr(m)}
-              </option>
-            )),
-          )}
-        </select>
-      </div>
-      <div ref={el} />
-      {tr(
-        !tasks.length && (
-          <p className="empty">{tr("No activities match your filters.")}</p>
-        ),
-      )}
-    </section>
   );
 }
 function Board({

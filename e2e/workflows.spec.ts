@@ -26,7 +26,14 @@ test("demo login, create activity and complete it", async ({ page }) => {
   );
   await page.getByRole("button", { name: "Close details" }).click();
   await page.getByRole("button", { name: "Timeline", exact: true }).click();
-  await expect(page.locator(".gantt")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Campaign timeline" })).toBeVisible();
+  for (const scale of ["Day", "Month", "Quarter", "Week"]) {
+    await page.getByLabel("Timeline scale", { exact: true }).selectOption(scale);
+    await expect(page.getByLabel("Timeline scale", { exact: true })).toHaveValue(scale);
+  }
+  await page.getByRole("button", { name: /^Review webinar recording: / }).click();
+  await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Review webinar recording");
+  await page.getByRole("button", { name: "Close details" }).click();
   await page.getByRole("button", { name: "Calendar", exact: true }).click();
   await expect(page.locator(".calendar")).toBeVisible();
 });
