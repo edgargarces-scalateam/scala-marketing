@@ -1501,7 +1501,7 @@ th {
 .schedule-scroll { overflow: auto; max-height: 650px; border: 1px solid #e0e5ed; border-radius: 8px; }
 .schedule-heading, .schedule-row { display: flex; }
 .schedule-heading { position: sticky; top: 0; z-index: 4; background: #f5f7fb; min-height: 44px; }
-.schedule-label { position: sticky; left: 0; flex: 0 0 260px; width: 260px; background: white; z-index: 2; padding: 12px; border: 0; border-right: 1px solid #e0e5ed; border-radius: 0; text-align: left; white-space: normal; }
+.schedule-label { display: block; position: sticky; left: 0; flex: 0 0 260px; width: 260px; background: white; z-index: 2; padding: 12px; border: 0; border-right: 1px solid #e0e5ed; border-radius: 0; text-align: left; white-space: normal; }
 .schedule-heading .schedule-label { background: #f5f7fb; }
 .schedule-label strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .schedule-label small { display: block; margin-top: 5px; color: #65738a; font-size: 11px; }
